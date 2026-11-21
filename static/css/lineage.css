@@ -39,6 +39,9 @@ main { flex: 1; padding: 1rem 1.25rem; overflow: auto; }
   display: inline-block; font-size: .75rem; padding: .15rem .45rem;
   border-radius: 999px; border: 1px solid var(--line); background: #20332e;
 }
+.tag.danger { border-color: var(--danger); color: #ffb4b4; background: #3a1f1f; }
+.cut-card { border-color: var(--danger); box-shadow: 0 0 0 1px rgba(224,112,112,.25) inset; }
+.checks { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .35rem; font-size: .85rem; }
 .wall { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
 label { display: grid; gap: .25rem; font-size: .85rem; color: var(--muted); }

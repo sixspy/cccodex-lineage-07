@@ -6,6 +6,8 @@ from app.services.errors import ServiceError
 
 
 def list_edges(db_path: str | None = None) -> list[dict]:
+    from app.services import cuts as cuts_svc
+
     with get_db(db_path) as conn:
         rows = conn.execute(
             "SELECT e.*, u.node_code AS upstream_code, u.table_name AS upstream_table, "
@@ -15,7 +17,16 @@ def list_edges(db_path: str | None = None) -> list[dict]:
             "JOIN lineage_nodes d ON d.id=e.downstream_id "
             "ORDER BY e.id"
         ).fetchall()
-        return [dict(r) for r in rows]
+        marks = cuts_svc.upstream_marks(db_path)
+        items = []
+        for r in rows:
+            item = dict(r)
+            mark = marks.get(int(r["upstream_id"]))
+            item["cut_source"] = bool(mark)
+            if mark:
+                item.update(mark)
+            items.append(item)
+        return items
 
 
 def create_edge(

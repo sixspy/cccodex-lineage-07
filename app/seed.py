@@ -3,7 +3,23 @@ from __future__ import annotations
 
 from app.db import SCHEMA, get_db, init_schema
 
-SCHEMA_VERSION = "lineage-v1"
+SCHEMA_VERSION = "lineage-v2"
+
+RESET_TABLES = (
+    "cut_bypass_vouchers",
+    "cut_archive_packages",
+    "cut_events",
+    "impact_exclusions",
+    "notify_logs",
+    "impact_hits",
+    "impact_jobs",
+    "ingest_runs",
+    "coverage_reports",
+    "lineage_edges",
+    "lineage_nodes",
+    "lab_settings",
+    "meta",
+)
 
 
 def _schema_compatible(conn) -> bool:
@@ -19,6 +35,17 @@ def _schema_compatible(conn) -> bool:
     return "node_code" in cols and "layer" in cols
 
 
+def _drop_all(conn) -> None:
+    """整表重建前先关外键，免得 DROP 顺序被引用关系挡住。"""
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        for table in RESET_TABLES:
+            conn.execute(f"DROP TABLE IF EXISTS {table}")
+        conn.executescript(SCHEMA)
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
+
+
 def seed_if_needed(db_path: str | None = None) -> dict:
     init_schema(db_path)
     with get_db(db_path) as conn:
@@ -26,18 +53,7 @@ def seed_if_needed(db_path: str | None = None) -> dict:
             "SELECT value FROM meta WHERE key='schema_version'"
         ).fetchone()
         if not _schema_compatible(conn) or (ver and ver["value"] != SCHEMA_VERSION):
-            for table in (
-                "notify_logs",
-                "impact_hits",
-                "impact_jobs",
-                "coverage_reports",
-                "lineage_edges",
-                "lineage_nodes",
-                "lab_settings",
-                "meta",
-            ):
-                conn.execute(f"DROP TABLE IF EXISTS {table}")
-            conn.executescript(SCHEMA)
+            _drop_all(conn)
         elif conn.execute("SELECT value FROM meta WHERE key='seeded'").fetchone():
             return {"seeded": False, "reason": "already"}
 
@@ -101,17 +117,8 @@ def seed_if_needed(db_path: str | None = None) -> dict:
 
 
 def reset_seed(db_path: str | None = None) -> None:
+    """重置样例数据。只读触发器会挡住 DELETE，故直接重建表。"""
     init_schema(db_path)
     with get_db(db_path) as conn:
-        for table in (
-            "notify_logs",
-            "impact_hits",
-            "impact_jobs",
-            "coverage_reports",
-            "lineage_edges",
-            "lineage_nodes",
-            "lab_settings",
-            "meta",
-        ):
-            conn.execute(f"DELETE FROM {table}")
+        _drop_all(conn)
     seed_if_needed(db_path)

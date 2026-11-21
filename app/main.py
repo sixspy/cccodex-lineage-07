@@ -7,6 +7,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from app.config import Config
 from app.seed import seed_if_needed
 from app.services import coverage as coverage_svc
+from app.services import cuts as cuts_svc
 from app.services import edges as edges_svc
 from app.services import impact as impact_svc
 from app.services import nodes as nodes_svc
@@ -187,6 +188,35 @@ def create_app() -> Bottle:
         )
         return _json({"item": item})
 
+    @app.get("/api/cuts")
+    @wrap
+    def api_cuts_list():
+        _require_user()
+        return _json(
+            {
+                "items": cuts_svc.list_cuts(),
+                "fingerprints": cuts_svc.verify_fingerprints(),
+            }
+        )
+
+    @app.get("/api/cuts/<cut_id:int>")
+    @wrap
+    def api_cuts_detail(cut_id):
+        _require_user()
+        return _json({"item": cuts_svc.get_cut(cut_id)})
+
+    @app.post("/api/cuts")
+    @wrap
+    def api_cuts_create():
+        _require_user()
+        body = _read_json()
+        item = cuts_svc.create_cut(
+            int(body.get("upstream_id") or 0),
+            str(body.get("fate_kind") or ""),
+            str(body.get("note") or ""),
+        )
+        return _json({"item": item})
+
     @app.post("/api/edges/<edge_id:int>/publish")
     @wrap
     def api_edges_publish(edge_id):
@@ -244,6 +274,18 @@ def create_app() -> Bottle:
     def api_coverage_run():
         _require_user()
         return _json({"report": coverage_svc.run_coverage()})
+
+    @app.get("/api/coverage/ingest")
+    @wrap
+    def api_ingest_list():
+        _require_user()
+        return _json({"items": coverage_svc.list_ingests()})
+
+    @app.post("/api/coverage/ingest")
+    @wrap
+    def api_ingest_run():
+        _require_user()
+        return _json({"run": coverage_svc.run_ingest()})
 
     @app.get("/api/settings")
     @wrap
